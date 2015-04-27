@@ -1,0 +1,160 @@
+---
+title: "FJplots_ggplot2"
+author: "B"
+date: "Monday, April 20, 2015"
+output: html_document
+---
+
+
+<!---
+use these command instead of the knit icon if you want the data and work loaded into the R workspace
+  library(knitr)
+    setwd('R_plots')
+  knit('NSFreport.rmd')
+-->
+
+To Do List
+-------------------------
+
+* convert fjplots to ggplot2
+
+Data Steps
+-------------------------
+
+* Load Packages
+
+```{r setup, include=FALSE, echo=FALSE, cache=FALSE} 
+#set working directory
+  setwd('R_plots')
+
+  #########function to install (if needed) and load R packages by list
+libs<-c("knitr","ggplot2","dplyr","wesanderson") #list of packages to load
+
+installLoad<-function(pck){ #user defined function
+    if(!pck%in%installed.packages()){install.packages(pck)}
+    require(pck, character.only = TRUE)
+  }
+lapply(libs,function(x) installLoad(x))  #Load/Install require packages
+```
+
+* Load Data
+* Data Definitions FJpop 
+    - MO  (YearMo)
+    - GR: (integer) Grid number
+    - SP (char) Species
+    - Nobs: (iindividuals)  Number of individuals observed during the month
+    - MNKA: (individuals) Minimum Number Known Alive by month
+    - TRT: (char) Treatment 
+* Calc Mean MNKA by SP TRT MO (df = 'FJ')
+* add 1 to all MNKA to avoid Log10(0)
+* create matrix of ranked values of months for plotting and add to FJ
+* Data Definitions FJ
+    - MO  (YearMo)
+    - SP (char) Species
+    - TRT: (char) Treatment 
+    - MNKA: (individuals) Mean Minimum Number Known Alive (MNKA+1) by SP TRT MO
+    - Time: (integer) Month rankings for plot (x axis)
+* Choose rainy years for polygon fills in the plot 
+    - RainYears<-c(91,92,97,2000,2001,2002,2004,2006,2011)
+* Get coordinates for rainy year polygons
+
+```{r Data, include=FALSE, echo=FALSE, cache=FALSE} 
+#load data
+  load(file='../FJpop.rda') #paste the file name here
+
+#Calc Mean MNKA by SP TRT MO
+  FJ<-aggregate(FJpop$MNKA,by=list(FJpop$SP,FJpop$TRT,FJpop$MO),mean)
+  names(FJ)<-c('SP','TRT','MO','MNKA')
+
+#add 1 to all MNKA to avoid Log10(0)
+  FJ$MNKA<-FJ$MNKA+1
+
+#create matrix of ranked values of months for plotting
+  mo<-data.frame(Time=rank(FJ$MO[FJ$SP=="OD" & FJ$TRT=="PDPP"]),MO=FJ$MO[FJ$SP=="OD" & FJ$TRT=="PDPP"])
+
+# merge FJ and mo
+  FJ<-merge(FJ,mo,by='MO')
+
+#choose rainy years for polygon fills in the plot 
+  RainYears<-c(91,92,97,2000,2001,2002,2004,2006,2011)
+
+# Get coordinates for rainy year rectangles
+  #df of start and end months for rainy years.  End is actually end plus 1 to look better on graph
+  rect<-data.frame(xstart=match(RainYears*100+5,mo$MO),xend=match(RainYears*100+105,mo$MO))
+
+```
+
+* Plot OD PD AO
+
+```{r ODPDAO, include=FALSE, echo=FALSE, cache=FALSE} 
+# filter data
+  # by trt first
+    a<-filter(FJ,TRT=='PDPP'|TRT=='PDMP'|TRT=='MDPP')
+  # then species
+    #a<-filter(a,SP=='OD')
+    a<-filter(a,SP=='OD'|SP=='PD'|SP=='AO')
+  #reorder factors
+    #trt
+      table(a$TRT)
+      a$TRT<-ordered(a$TRT,levels=c('PDPP','PDMP','MDPP'))
+    #Species
+      a$species[a$SP=='OD']<-'Octodon degus'
+      a$species[a$SP=='PD']<-'Phyllotis darwini'
+      a$species[a$SP=='AO']<-'Abrothrix olivaceus'
+      a$species<-ordered(a$species,levels=c('Octodon degus','Phyllotis darwini','Abrothrix olivaceus'))
+    #spell out treatment
+      table(a$TRT,useNA='ifany')
+        a$Treatment[a$TRT=='PDMP']<-'Predator Exclusion'
+        a$Treatment[a$TRT=='MDPP']<-'Degu Exclusion'
+        a$Treatment[a$TRT=='PDPP']<-'Control'
+        a$Treatment<-ordered(a$Treatment,levels=c('Predator Exclusion','Degu Exclusion','Control'))
+      table(a$Treatment)
+        
+#species labels for plot
+  SpLabel<-ddply(.data=a,.(SP,species),summarize,n=length(species))[c(2,3,1),]
+
+# plots with rain polygons WesAnderson palettes
+  #list of palettes
+    Pal<-c('GrandBudapest','Moonrise1','Royal1','Moonrise2','Cavalcanti','Royal2','Moonrise3','Chevalier','Zissou','FantasticFox','Darjeeling','Rushmore','BottleRocket','Darjeeling2')
+
+#select palette (Index of desired palette from Pal above)
+i<-11  #11 is darjeeling-peter likes this one.
+ #set up plot
+    jpeg(filename=paste('ODPDAO_Treatment_201411_',Pal[i],'.jpeg',sep=''),width=5*180,height=4*180) 
+    
+    #win.graph(11, 8.5) 
+  ggplot()+
+  geom_rect(data = rect, aes(xmin = xstart, xmax = xend, 
+                             ymin = 0, ymax = Inf), alpha = 0.4)+
+  geom_line(data=a,aes(x=Time,y=MNKA,group=Treatment),colour='#2a2a2a',size=1.0)+
+  geom_point(data=a,aes(x=Time,y=MNKA,group=Treatment,shape=Treatment,fill=Treatment),size=4) +
+  scale_fill_manual(values = wes_palette(Pal[i],3))+
+  #scale_fill_manual(values = c("#d3d3d3", "#a8a8a8", "#7e7e7e"))+ #greyscale option
+  scale_shape_manual(values = c(24,25,21))+
+  facet_grid(species~.)+ #labels on the side
+  #facet_wrap(~species,ncol=1)+ #labels on the top    
+  scale_y_log10(limits=c(1,220),name='Minimum Number Known Alive')+ 
+  scale_x_continuous(limits=c(0,max(mo$Time)),breaks=seq(-1.5,max(mo$Time),by=12),labels=c(1989:floor(max(mo$MO)/100)),expand=c(.01,01))+
+  theme(strip.text=element_text(face = "bold.italic",size=12),
+        strip.background = element_blank(), #shading from facet strip
+        strip.text.x = element_blank(), #remove facet labels 
+        strip.text.y = element_blank(), #remove facet labels  
+        axis.title.y=element_text(face="bold",size=20),
+        axis.text.x=element_text(angle=0,hjust=-.1,face="bold",size=11),
+        axis.title.x=element_blank(),
+        axis.text.y=element_text(face="bold",size=12),
+        #legend.justification=c(0,0),
+        legend.position=c(.778,.260),
+        legend.key=element_rect(colour='black',fill=NA, size = .5, linetype='blank'),
+        legend.background = element_rect(colour=NA, fill=NA, size = 3, linetype='dashed'),
+        panel.border = element_rect(colour="black", fill=NA, size=2),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank())+
+  geom_text(data=SpLabel,aes(x=0, y=200, label=species,fontface=4,hjust=0), 
+            colour="black", inherit.aes=FALSE, parse=FALSE)
+    
+  dev.off()
+
+```
+
