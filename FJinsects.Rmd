@@ -1,7 +1,7 @@
 ---
-title: "FJplots_ggplot2"
+title: "FJinsects"
 author: "B"
-date: "Monday, April 20, 2015"
+date: "April 27, 2015"
 output: html_document
 ---
 
@@ -9,14 +9,13 @@ output: html_document
 <!---
 use these command instead of the knit icon if you want the data and work loaded into the R workspace
   library(knitr)
-    setwd('R_plots')
-  knit('NSFreport.rmd')
+  knit('FJinsects.rmd')
 -->
 
 To Do List
 -------------------------
 
-* convert fjplots to ggplot2
+* plots of biomass and nums for Malaise and Barber traps with rainfall bars
 
 Data Steps
 -------------------------
@@ -24,11 +23,8 @@ Data Steps
 * Load Packages
 
 ```{r setup, include=FALSE, echo=FALSE, cache=FALSE} 
-#set working directory
-  setwd('R_plots')
-
   #########function to install (if needed) and load R packages by list
-libs<-c("knitr","ggplot2","dplyr","wesanderson") #list of packages to load
+libs<-c("knitr","ggplot2","dplyr","wesanderson","plyr") #list of packages to load
 
 installLoad<-function(pck){ #user defined function
     if(!pck%in%installed.packages()){install.packages(pck)}
@@ -40,121 +36,164 @@ lapply(libs,function(x) installLoad(x))  #Load/Install require packages
 * Load Data
 * Data Definitions FJpop 
     - MO  (YearMo)
-    - GR: (integer) Grid number
-    - SP (char) Species
-    - Nobs: (iindividuals)  Number of individuals observed during the month
-    - MNKA: (individuals) Minimum Number Known Alive by month
-    - TRT: (char) Treatment 
-* Calc Mean MNKA by SP TRT MO (df = 'FJ')
-* add 1 to all MNKA to avoid Log10(0)
-* create matrix of ranked values of months for plotting and add to FJ
-* Data Definitions FJ
-    - MO  (YearMo)
-    - SP (char) Species
-    - TRT: (char) Treatment 
-    - MNKA: (individuals) Mean Minimum Number Known Alive (MNKA+1) by SP TRT MO
-    - Time: (integer) Month rankings for plot (x axis)
-* Choose rainy years for polygon fills in the plot 
-    - RainYears<-c(91,92,97,2000,2001,2002,2004,2006,2011)
-* Get coordinates for rainy year polygons
-
+    - Session: (integer) Sequential numbering of months
+    - NumsM (numeric) Malaise Trap: Number of individuals
+    - BiomM (numeric) Malaise Trap: Biomass
+    - NumsB (numeric) Barber Trap: Number of individuals
+    - BiomB (numeric) Barber Trap: Biomass
+ 
 ```{r Data, include=FALSE, echo=FALSE, cache=FALSE} 
 #load data
-  load(file='../FJpop.rda') #paste the file name here
-
-#Calc Mean MNKA by SP TRT MO
-  FJ<-aggregate(FJpop$MNKA,by=list(FJpop$SP,FJpop$TRT,FJpop$MO),mean)
-  names(FJ)<-c('SP','TRT','MO','MNKA')
-
-#add 1 to all MNKA to avoid Log10(0)
-  FJ$MNKA<-FJ$MNKA+1
-
-#create matrix of ranked values of months for plotting
-  mo<-data.frame(Time=rank(FJ$MO[FJ$SP=="OD" & FJ$TRT=="PDPP"]),MO=FJ$MO[FJ$SP=="OD" & FJ$TRT=="PDPP"])
-
-# merge FJ and mo
-  FJ<-merge(FJ,mo,by='MO')
-
-#choose rainy years for polygon fills in the plot 
-  RainYears<-c(91,92,97,2000,2001,2002,2004,2006,2011)
-
-# Get coordinates for rainy year rectangles
-  #df of start and end months for rainy years.  End is actually end plus 1 to look better on graph
-  rect<-data.frame(xstart=match(RainYears*100+5,mo$MO),xend=match(RainYears*100+105,mo$MO))
+  FJ<-read.csv(file='Insects.csv') #paste the file name here
 
 ```
 
-* Plot OD PD AO
+* Get coordinates for rainy year polygons (2003, 2006, 2011; May to May) by Session
+    - xstart=c(1,31,91)
+    - xend=c(7,43,103)
+* Plot Monthly Values 
 
-```{r ODPDAO, include=FALSE, echo=FALSE, cache=FALSE} 
-# filter data
-  # by trt first
-    a<-filter(FJ,TRT=='PDPP'|TRT=='PDMP'|TRT=='MDPP')
-  # then species
-    #a<-filter(a,SP=='OD')
-    a<-filter(a,SP=='OD'|SP=='PD'|SP=='AO')
-  #reorder factors
-    #trt
-      table(a$TRT)
-      a$TRT<-ordered(a$TRT,levels=c('PDPP','PDMP','MDPP'))
-    #Species
-      a$species[a$SP=='OD']<-'Octodon degus'
-      a$species[a$SP=='PD']<-'Phyllotis darwini'
-      a$species[a$SP=='AO']<-'Abrothrix olivaceus'
-      a$species<-ordered(a$species,levels=c('Octodon degus','Phyllotis darwini','Abrothrix olivaceus'))
-    #spell out treatment
-      table(a$TRT,useNA='ifany')
-        a$Treatment[a$TRT=='PDMP']<-'Predator Exclusion'
-        a$Treatment[a$TRT=='MDPP']<-'Degu Exclusion'
-        a$Treatment[a$TRT=='PDPP']<-'Control'
-        a$Treatment<-ordered(a$Treatment,levels=c('Predator Exclusion','Degu Exclusion','Control'))
-      table(a$Treatment)
-        
-#species labels for plot
-  SpLabel<-ddply(.data=a,.(SP,species),summarize,n=length(species))[c(2,3,1),]
-
-# plots with rain polygons WesAnderson palettes
-  #list of palettes
-    Pal<-c('GrandBudapest','Moonrise1','Royal1','Moonrise2','Cavalcanti','Royal2','Moonrise3','Chevalier','Zissou','FantasticFox','Darjeeling','Rushmore','BottleRocket','Darjeeling2')
-
-#select palette (Index of desired palette from Pal above)
-i<-11  #11 is darjeeling-peter likes this one.
- #set up plot
-    jpeg(filename=paste('ODPDAO_Treatment_201411_',Pal[i],'.jpeg',sep=''),width=5*180,height=4*180) 
-    
-    #win.graph(11, 8.5) 
-  ggplot()+
-  geom_rect(data = rect, aes(xmin = xstart, xmax = xend, 
-                             ymin = 0, ymax = Inf), alpha = 0.4)+
-  geom_line(data=a,aes(x=Time,y=MNKA,group=Treatment),colour='#2a2a2a',size=1.0)+
-  geom_point(data=a,aes(x=Time,y=MNKA,group=Treatment,shape=Treatment,fill=Treatment),size=4) +
-  scale_fill_manual(values = wes_palette(Pal[i],3))+
-  #scale_fill_manual(values = c("#d3d3d3", "#a8a8a8", "#7e7e7e"))+ #greyscale option
-  scale_shape_manual(values = c(24,25,21))+
-  facet_grid(species~.)+ #labels on the side
-  #facet_wrap(~species,ncol=1)+ #labels on the top    
-  scale_y_log10(limits=c(1,220),name='Minimum Number Known Alive')+ 
-  scale_x_continuous(limits=c(0,max(mo$Time)),breaks=seq(-1.5,max(mo$Time),by=12),labels=c(1989:floor(max(mo$MO)/100)),expand=c(.01,01))+
-  theme(strip.text=element_text(face = "bold.italic",size=12),
-        strip.background = element_blank(), #shading from facet strip
-        strip.text.x = element_blank(), #remove facet labels 
-        strip.text.y = element_blank(), #remove facet labels  
-        axis.title.y=element_text(face="bold",size=20),
-        axis.text.x=element_text(angle=0,hjust=-.1,face="bold",size=11),
-        axis.title.x=element_blank(),
-        axis.text.y=element_text(face="bold",size=12),
-        #legend.justification=c(0,0),
-        legend.position=c(.778,.260),
-        legend.key=element_rect(colour='black',fill=NA, size = .5, linetype='blank'),
-        legend.background = element_rect(colour=NA, fill=NA, size = 3, linetype='dashed'),
-        panel.border = element_rect(colour="black", fill=NA, size=2),
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank())+
-  geom_text(data=SpLabel,aes(x=0, y=200, label=species,fontface=4,hjust=0), 
-            colour="black", inherit.aes=FALSE, parse=FALSE)
-    
-  dev.off()
-
+```{r PlotMo, include=FALSE, echo=FALSE, cache=FALSE}
+#Start and end months of rain polygons
+  rect<-data.frame(xstart=c(0,31,91),xend=c(7,43,103))
+#function to create plots of monthly data
+  PlotMo<-function(Yvar='NumsB',Title='Barber Trap Numbers/Month',Type='Log',Breaks=c(10,100,1000)){
+    Data<-data.frame(X=FJ$Session,Y=FJ[,which(names(FJ)==Yvar)])    
+    Out<-ggplot()+
+      geom_rect(data = rect, aes(xmin = xstart, xmax = xend, 
+                                 ymin = 0, ymax = Inf), alpha = 0.4)+
+      geom_line(data=Data,aes(x=X,y=Y),colour='#2a2a2a',size=1.0) +
+      geom_point(data=Data,aes(x=X,y=Y),size=4) +
+      scale_x_continuous(limits=c(0,122),breaks=seq(2.5,122,by=12),labels=c(2004:2013),expand=c(.01,.01)) +
+      theme(axis.title.y=element_text(face="bold",size=20),
+          axis.text.x=element_text(angle=0,hjust=-.3,face="bold",size=20),
+          axis.text.y=element_text(face="bold",size=14),
+          axis.title.x=element_blank(),
+          panel.border = element_rect(colour="black", fill=NA, size=2),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          panel.background = element_blank()) 
+   if(Type=='Log'){ 
+    Out<-Out + scale_y_log10(name=Title,breaks=Breaks) 
+    }else{
+      Out<-Out + scale_y_continuous(limits=c(0,max(Data$Y)),name=Title) 
+    }
+  print(Out)
+  #send to file
+    jpeg(filename=paste(Yvar,'_',Type,'.jpeg',sep=''),width=5*180,height=4*180) 
+    print(Out)
+    dev.off()
+  }
+PlotMo('NumsB','Barber Trap Numbers / Month','Log',c(10,100,1000))
+PlotMo('NumsB','Barber Trap Numbers / Month','Linear')
+PlotMo('NumsM','Malaise Trap Numbers / Month','Log',c(10,100,1000))
+PlotMo('NumsM','Malaise Trap Numbers / Month','Linear')
+PlotMo('BiomB','Barber Trap Biomass g / Month','Log',c(.1,1,10,100,1000))
+PlotMo('BiomB','Barber Trap Biomass g / Month','Linear')
+PlotMo('BiomM','Malaise Trap Biomass g / Month','Log',c(.1,1,5))
+PlotMo('BiomM','Malaise Trap Biomass g / Month','Linear')
 ```
+
+* Function to calculate means and standard errores (summarySE)
+
+
+,breaks=c(10,100,1000)
+
+```{r summarySE, include=FALSE, echo=FALSE, cache=FALSE}
+
+#Function summarSE #http://www.cookbook-r.com/Graphs/Plotting_means_and_error_bars_(ggplot2)/#Helper functions
+
+## Gives count, mean, standard deviation, standard error of the mean, and confidence interval (default 95%).
+##   data: a data frame.
+##   measurevar: the name of a column that contains the variable to be summariezed
+##   groupvars: a vector containing names of columns that contain grouping variables
+##   na.rm: a boolean that indicates whether to ignore NA's
+##   conf.interval: the percent range of the confidence interval (default is 95%)
+summarySE <- function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
+                      conf.interval=.95, .drop=TRUE) {
+
+    # New version of length which can handle NA's: if na.rm==T, don't count them
+    length2 <- function (x, na.rm=FALSE) {
+        if (na.rm) sum(!is.na(x))
+        else       length(x)
+    }
+
+    # This does the summary. For each group's data frame, return a vector with
+    # N, mean, and sd
+    datac <- ddply(data, groupvars, .drop=.drop,
+      .fun = function(xx, col) {
+        c(N    = length2(xx[[col]], na.rm=na.rm),
+          mean = mean   (xx[[col]], na.rm=na.rm),
+          sd   = sd     (xx[[col]], na.rm=na.rm)
+        )
+      },
+      measurevar
+    )
+
+    # Rename the "mean" column    
+    datac <- rename(datac, c("mean" = measurevar))
+
+    datac$se <- datac$sd / sqrt(datac$N)  # Calculate standard error of the mean
+
+    # Confidence interval multiplier for standard error
+    # Calculate t-statistic for confidence interval: 
+    # e.g., if conf.interval is .95, use .975 (above/below), and use df=N-1
+    ciMult <- qt(conf.interval/2 + .5, datac$N-1)
+    datac$ci <- datac$se * ciMult
+
+    return(datac)
+}
+```
+
+* Add Month variable
+* Aggregate data by month
+* Plot values with standard errores
+
+```{r plotMeans, include=FALSE, echo=FALSE, cache=FALSE}
+#get Month
+  FJ$Month<-as.numeric(substr(FJ$MO,5,6))
+#Function to plot yearly means
+  plotMeans<-function(Yvar='NumsB',Title='Mean Barber Trap Numbers / Month',Type='Log',Breaks=c(10,100,1000)){
+    #get means and SE
+      Means<-summarySE(FJ, measurevar=Yvar, groupvars=c("Month"),na.rm=TRUE)
+    #plot data
+      Data<-data.frame(X=Means$Month,Y=Means[,which(names(Means)==Yvar)],se=Means$se)   
+    #error bars
+      Data$Ymin=Data$Y-Data$se
+      Data$Ymax=Data$Y+Data$se
+    #Title
+      Title<-paste(Title,' (',expression('\261'),'1 s.e.)',sep=)
+    #plot data
+      Out<-ggplot(Data, aes(x=X, y=Y)) + 
+        geom_errorbar(aes(ymin=Ymin, ymax=Ymax), width=.1) +
+        geom_line(size=1) +
+        geom_point(size=4) +
+        scale_x_continuous(limits=c(.9,12.1),breaks=c(1:12),labels=c('Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'),expand=c(.01,.01)) +
+      theme(axis.title.y=element_text(face="bold",size=20),
+          axis.text.x=element_text(angle=0,hjust=0.5,face="bold",size=20),
+          axis.text.y=element_text(face="bold",size=20),
+          axis.title.x=element_blank(),
+          panel.border = element_rect(colour="black", fill=NA, size=2),
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          panel.background = element_blank()) 
+   if(Type=='Log'){ 
+    Out<-Out + scale_y_log10(limits=c(min(Data$Ymin),max(Data$Ymax)),name=Title,breaks=Breaks) 
+    }else{
+      Out<-Out + scale_y_continuous(limits=c(min(Data$Ymin),max(Data$Ymax)),name=Title) 
+    }
+  print(Out)
+  #send to file
+    jpeg(filename=paste('Mean_',Yvar,'_',Type,'.jpeg',sep=''),width=5*180,height=4*180) 
+    print(Out)
+    dev.off()
+  }
+plotMeans('NumsB','Mean Barber Trap Numbers / Month','Log',c(10,100,1000))
+plotMeans('NumsB','Mean Barber Trap Numbers / Month','Linear')
+plotMeans('NumsM','Mean Malaise Trap Numbers / Month','Log',c(10,100,1000))
+plotMeans('NumsM','Mean Malaise Trap Numbers / Month','Linear')
+plotMeans('BiomB','Mean Barber Trap Biomass g / Month','Log',c(.1,1,10,100,1000))
+plotMeans('BiomB','Mean Barber Trap Biomass g / Month','Linear')
+plotMeans('BiomM','Mean Malaise Trap Biomass g / Month','Log',c(1,2,3))
+plotMeans('BiomM','Mean Malaise Trap Biomass g / Month','Linear')
 
