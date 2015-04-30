@@ -23,6 +23,7 @@ Data Steps
 * Load Packages
 
 ```{r setup, include=FALSE, echo=FALSE, cache=FALSE} 
+options(scipen=5) #tell r not to use scientific notation on axis labels
   #########function to install (if needed) and load R packages by list
 libs<-c("knitr","ggplot2","dplyr","wesanderson","plyr") #list of packages to load
 
@@ -57,41 +58,57 @@ lapply(libs,function(x) installLoad(x))  #Load/Install require packages
 #Start and end months of rain polygons
   rect<-data.frame(xstart=c(0,31,91),xend=c(7,43,103))
 #function to create plots of monthly data
-  PlotMo<-function(Yvar='NumsB',Title='Barber Trap Numbers/Month',Type='Log',Breaks=c(10,100,1000)){
-    Data<-data.frame(X=FJ$Session,Y=FJ[,which(names(FJ)==Yvar)])    
+  PlotMo<-function(Yvar='NumsB',Title='Barber Trap Numbers/Month',Type='Log',Breaks=c(10,100,1000),ylim){
+    Data<-data.frame(X=FJ$Session,Y=FJ[,which(names(FJ)==Yvar)])   
     Out<-ggplot()+
       geom_rect(data = rect, aes(xmin = xstart, xmax = xend, 
                                  ymin = 0, ymax = Inf), alpha = 0.4)+
-      geom_line(data=Data,aes(x=X,y=Y),colour='#2a2a2a',size=1.0) +
-      geom_point(data=Data,aes(x=X,y=Y),size=4) +
-      scale_x_continuous(limits=c(0,122),breaks=seq(2.5,122,by=12),labels=c(2004:2013),expand=c(.01,.01)) +
-      theme(axis.title.y=element_text(face="bold",size=20),
-          axis.text.x=element_text(angle=0,hjust=-.3,face="bold",size=20),
-          axis.text.y=element_text(face="bold",size=14),
+      geom_line(data=Data,aes(x=X,y=Y),colour='#2a2a2a',size=Line) +
+      geom_point(data=Data,aes(x=X,y=Y),size=Point) +
+      scale_x_continuous(limits=c(0,122),breaks=seq(2.5,122,by=12),labels=c(2004:2013),expand=c(.02,.02)) +
+      theme(axis.title.y=element_text(face="bold",size=Ytitle,vjust=titleJust),
+          axis.text.x=element_text(angle=0,hjust=xJust,face="bold",size=Xlab),
+          axis.text.y=element_text(face="bold",size=Ylab),
           axis.title.x=element_blank(),
+          axis.ticks.length = unit(tickL, "cm"), #tick size
+          axis.ticks=element_line(size=tickW),
           panel.border = element_rect(colour="black", fill=NA, size=2),
           panel.grid.major = element_blank(), 
           panel.grid.minor = element_blank(),
           panel.background = element_blank()) 
    if(Type=='Log'){ 
-    Out<-Out + scale_y_log10(name=Title,breaks=Breaks) 
+    Out<-Out + scale_y_log10(limits=ylim,name=Title,breaks=Breaks) 
     }else{
-      Out<-Out + scale_y_continuous(limits=c(0,max(Data$Y)),name=Title) 
+      Out<-Out + scale_y_continuous(limits=ylim,name=Title,breaks=Breaks) 
     }
   print(Out)
   #send to file
     jpeg(filename=paste(Yvar,'_',Type,'.jpeg',sep=''),width=5*180,height=4*180) 
     print(Out)
     dev.off()
+  #return figure
+    return(Out)
   }
-PlotMo('NumsB','Barber Trap Numbers / Month','Log',c(10,100,1000))
-PlotMo('NumsB','Barber Trap Numbers / Month','Linear')
-PlotMo('NumsM','Malaise Trap Numbers / Month','Log',c(10,100,1000))
-PlotMo('NumsM','Malaise Trap Numbers / Month','Linear')
-PlotMo('BiomB','Barber Trap Biomass g / Month','Log',c(.1,1,10,100,1000))
-PlotMo('BiomB','Barber Trap Biomass g / Month','Linear')
-PlotMo('BiomM','Malaise Trap Biomass g / Month','Log',c(.1,1,5))
-PlotMo('BiomM','Malaise Trap Biomass g / Month','Linear')
+
+#controls
+Ylab<-10
+Xlab<-10
+Ytitle<-11
+titleJust=1
+Line<-.8
+Point<-3
+tickL<-.25
+tickW<-1.5
+xJust<--.2
+
+Log2a<-PlotMo('NumsB','Barber Trap Numbers / Month','Log',c(1,10,100,1000),c(1,2700))
+Lin2a<-PlotMo('NumsB','Barber Trap Numbers / Month','Linear',c(500,1000,1500,2000,2500),c(0,2700))
+Log2b<-PlotMo('NumsM','Malaise Trap Numbers / Month','Log',c(1,10,100,1000),c(1,2700))
+Lin2b<-PlotMo('NumsM','Malaise Trap Numbers / Month','Linear',c(500,1000,1500,2000,2500),c(0,2700))
+Log2c<-PlotMo('BiomB','Barber Trap Biomass g / Month','Log',c(1,10,100,1000),c(.05,1200))
+Lin2c<-PlotMo('BiomB','Barber Trap Biomass g / Month','Linear',c(250,500,750,1000),c(0,1200))
+Log2d<-PlotMo('BiomM','Malaise Trap Biomass g / Month','Log',c(1,10,100,1000),c(.05,1200))
+Lin2d<-PlotMo('BiomM','Malaise Trap Biomass g / Month','Linear',c(1,2,3),c(0,6))
 ```
 
 * Function to calculate means and standard errores (summarySE)
@@ -153,7 +170,7 @@ summarySE <- function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
 #get Month
   FJ$Month<-as.numeric(substr(FJ$MO,5,6))
 #Function to plot yearly means
-  plotMeans<-function(Yvar='NumsB',Title='Mean Barber Trap Numbers / Month',Type='Log',Breaks=c(10,100,1000)){
+  plotMeans<-function(Yvar,Title,Type,Breaks,Ylim){
     #get means and SE
       Means<-summarySE(FJ, measurevar=Yvar, groupvars=c("Month"),na.rm=TRUE)
     #plot data
@@ -163,37 +180,150 @@ summarySE <- function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
       Data$Ymax=Data$Y+Data$se
     #Title
       Title<-paste(Title,' (',expression('\261'),'1 s.e.)',sep=)
-    #plot data
+  #browser()
+   #plot data
       Out<-ggplot(Data, aes(x=X, y=Y)) + 
         geom_errorbar(aes(ymin=Ymin, ymax=Ymax), width=.1) +
-        geom_line(size=1) +
-        geom_point(size=4) +
-        scale_x_continuous(limits=c(.9,12.1),breaks=c(1:12),labels=c('Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'),expand=c(.01,.01)) +
-      theme(axis.title.y=element_text(face="bold",size=20),
-          axis.text.x=element_text(angle=0,hjust=0.5,face="bold",size=20),
-          axis.text.y=element_text(face="bold",size=20),
+        geom_line(size=Line) +
+        geom_point(size=Point) +
+        scale_x_continuous(limits=c(.9,12.1),breaks=c(1:12),labels=c('Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'),expand=c(.02,.02)) +
+      theme(axis.title.y=element_text(face="bold",size=Ytitle,vjust=titleJust),
+          axis.text.x=element_text(angle=0,hjust=xJust,face="bold",size=Xlab),
+          axis.text.y=element_text(face="bold",size=Ylab),
           axis.title.x=element_blank(),
+          axis.ticks.length = unit(tickL, "cm"), #tick size
+          axis.ticks=element_line(size=tickW),
           panel.border = element_rect(colour="black", fill=NA, size=2),
           panel.grid.major = element_blank(), 
           panel.grid.minor = element_blank(),
           panel.background = element_blank()) 
    if(Type=='Log'){ 
-    Out<-Out + scale_y_log10(limits=c(min(Data$Ymin),max(Data$Ymax)),name=Title,breaks=Breaks) 
+    Out<-Out + scale_y_log10(limits=Ylim,name=Title,breaks=Breaks) 
     }else{
-      Out<-Out + scale_y_continuous(limits=c(min(Data$Ymin),max(Data$Ymax)),name=Title) 
+      Out<-Out + scale_y_continuous(limits=Ylim,name=Title,breaks=Breaks) 
     }
   print(Out)
   #send to file
     jpeg(filename=paste('Mean_',Yvar,'_',Type,'.jpeg',sep=''),width=5*180,height=4*180) 
     print(Out)
     dev.off()
+  #return figure
+    return(Out)
   }
-plotMeans('NumsB','Mean Barber Trap Numbers / Month','Log',c(10,100,1000))
-plotMeans('NumsB','Mean Barber Trap Numbers / Month','Linear')
-plotMeans('NumsM','Mean Malaise Trap Numbers / Month','Log',c(10,100,1000))
-plotMeans('NumsM','Mean Malaise Trap Numbers / Month','Linear')
-plotMeans('BiomB','Mean Barber Trap Biomass g / Month','Log',c(.1,1,10,100,1000))
-plotMeans('BiomB','Mean Barber Trap Biomass g / Month','Linear')
-plotMeans('BiomM','Mean Malaise Trap Biomass g / Month','Log',c(1,2,3))
-plotMeans('BiomM','Mean Malaise Trap Biomass g / Month','Linear')
 
+#controls
+Ylab<-10
+Xlab<-10
+Ytitle<-11
+titleJust<-1
+Line<-1.0
+Point<-4
+tickL<-.25
+tickW<-1.5
+xJust<-.55
+
+Log1a<-plotMeans('NumsB','Mean Barber Trap Numbers / Month','Log',c(10,100,1000),c(10,1100))
+Lin1a<-plotMeans('NumsB','Mean Barber Trap Numbers / Month','Linear',c(250,500,750,1000),c(0,1000))
+Log1b<-plotMeans('NumsM','Mean Malaise Trap Numbers / Month','Log',c(10,100,1000),c(10,1100))
+Lin1b<-plotMeans('NumsM','Mean Malaise Trap Numbers / Month','Linear',c(250,500,750,1000),c(0,1000))
+Log1c<-plotMeans('BiomB','Mean Barber Trap Biomass g / Month','Log',c(1,10,100,1000),c(.1,1000))
+Lin1c<-plotMeans('BiomB','Mean Barber Trap Biomass g / Month','Linear',c(100,200,300,400,500),c(0,350))
+Log1d<-plotMeans('BiomM','Mean Malaise Trap Biomass g / Month','Log',c(1,10,100,1000),c(.1,1000))
+Lin1d<-plotMeans('BiomM','Mean Malaise Trap Biomass g / Month','Linear',c(1,2,3),c(0,3))
+```
+
+* add multiplots
+
+
+```{r multiplot, include=FALSE, echo=FALSE, cache=FALSE}
+# Multiple plot function
+#
+# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+# - cols:   Number of columns in layout
+# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+#
+# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+# then plot 1 will go in the upper left, 2 will go in the upper right, and
+# 3 will go all the way across the bottom.
+#
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  require(grid)
+
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+
+  numPlots = length(plots)
+
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                    ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+
+ if (numPlots==1) {
+    print(plots[[1]])
+
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+
+
+#multiplot monthly means
+v<-1.5
+h<--.8
+Size<-5
+
+a1<-Log1a+annotate("text", x =-Inf, y =Inf, label = "A)",hjust=h,vjust=v,size=Size,fontface='bold')
+
+b1<-Log1b+annotate("text", x =-Inf, y =Inf, label = "B)",hjust=h,vjust=v,size=Size,fontface='bold')
+
+c1<-Log1c+annotate("text", x =-Inf, y =Inf, label = "C)",hjust=h,vjust=v,size=Size,fontface='bold')
+
+d1<-Log1d+annotate("text", x =-Inf, y =Inf, label = "D)",hjust=h,vjust=v,size=Size,fontface='bold')
+
+#windows(11,8.5)
+  #jpeg(filename='Fig1.jpeg',width=11*180,height=8*180)
+   # multiplot(a1,c1,b1,d1,cols=2)
+  #dev.off()
+
+tiff(filename='Fig1.tiff',width=11,height=8,units ="in",res=600)
+  multiplot(a1,c1,b1,d1,cols=2)
+  dev.off()
+
+#multiplot monthly totals
+v<-1.5
+h<--.6
+Size<-5
+
+a1<-Log2a+annotate("text", x =-Inf, y =Inf, label = "A)",hjust=h,vjust=v,size=Size,fontface='bold')
+
+b1<-Log2b+annotate("text", x =-Inf, y =Inf, label = "B)",hjust=h,vjust=v,size=Size,fontface='bold')
+
+c1<-Log2c+annotate("text", x =-Inf, y =Inf, label = "C)",hjust=h,vjust=v,size=Size,fontface='bold')
+
+d1<-Log2d+annotate("text", x =-Inf, y =Inf, label = "D)",hjust=h,vjust=v,size=Size,fontface='bold')
+
+#windows(11,8.5)
+
+tiff(filename='Fig2.tiff',width=11,height=8,units ="in",res=600)
+  multiplot(a1,c1,b1,d1,cols=2)
+  dev.off()
+
+  #jpeg(filename='Fig2.jpeg',width=11*180,height=8*180)
+    #multiplot(a1,c1,b1,d1,cols=2)
+  #dev.off()
