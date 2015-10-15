@@ -1,7 +1,7 @@
 ---
 title: "FJinsects"
 author: "B"
-date: "April 27, 2015"
+date: "October 15, 2015"
 output: html_document
 ---
 
@@ -15,7 +15,24 @@ use these command instead of the knit icon if you want the data and work loaded 
 To Do List
 -------------------------
 
-* plots of biomass and nums for Malaise and Barber traps with rainfall bars
+* have Peter check
+    - 2014 data
+    - rainy year polygons
+* need to add 2014 to x axis limits
+
+Data Sources
+-------------------------
+
+* Insect data through 2013 originally harvested from a sigmaplot file (Insect Data.jnb) received by email from pmeserve@uidaho.edu on 20150427.
+* 2014 data harvested from two spreadsheets ("Barber data.03-14.unhide.wksht.xlsx" & "Malaise data.04-14.unhide.wksht.xlsx") received by email from pmeserve@uidaho.edu on 20151014
+* Data saved as a csv file
+* Data Definitions  
+    - MO  (YearMo)
+    - Session: (integer) Sequential numbering of months
+    - NumsM (numeric) Malaise Trap: Number of individuals
+    - BiomM (numeric) Malaise Trap: Biomass
+    - NumsB (numeric) Barber Trap: Number of individuals
+    - BiomB (numeric) Barber Trap: Biomass
 
 Data Steps
 -------------------------
@@ -25,7 +42,7 @@ Data Steps
 ```{r setup, include=FALSE, echo=FALSE, cache=FALSE} 
 options(scipen=5) #tell r not to use scientific notation on axis labels
   #########function to install (if needed) and load R packages by list
-libs<-c("knitr","ggplot2","dplyr","wesanderson","plyr") #list of packages to load
+libs<-c("knitr","ggplot2","dplyr","wesanderson","plyr","grid") #list of packages to load
 
 installLoad<-function(pck){ #user defined function
     if(!pck%in%installed.packages()){install.packages(pck)}
@@ -35,13 +52,6 @@ lapply(libs,function(x) installLoad(x))  #Load/Install require packages
 ```
 
 * Load Data
-* Data Definitions FJpop 
-    - MO  (YearMo)
-    - Session: (integer) Sequential numbering of months
-    - NumsM (numeric) Malaise Trap: Number of individuals
-    - BiomM (numeric) Malaise Trap: Biomass
-    - NumsB (numeric) Barber Trap: Number of individuals
-    - BiomB (numeric) Barber Trap: Biomass
  
 ```{r Data, include=FALSE, echo=FALSE, cache=FALSE} 
 #load data
