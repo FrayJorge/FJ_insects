@@ -75,7 +75,7 @@ lapply(libs,function(x) installLoad(x))  #Load/Install require packages
                                  ymin = 0, ymax = Inf), alpha = 0.4)+
       geom_line(data=Data,aes(x=X,y=Y),colour='#2a2a2a',size=Line) +
       geom_point(data=Data,aes(x=X,y=Y),size=Point) +
-      scale_x_continuous(limits=c(0,122),breaks=seq(2.5,122,by=12),labels=c(2004:2013),expand=c(.02,.02)) +
+      scale_x_continuous(limits=c(0,nrow(Data)),breaks=seq(2.5,nrow(Data),by=12),labels=c(2004:2014),expand=c(.02,.02)) +
       theme(axis.title.y=element_text(face="bold",size=Ytitle,vjust=titleJust),
           axis.text.x=element_text(angle=0,hjust=xJust,face="bold",size=Xlab),
           axis.text.y=element_text(face="bold",size=Ylab),
@@ -101,9 +101,9 @@ lapply(libs,function(x) installLoad(x))  #Load/Install require packages
   }
 
 #controls
-Ylab<-10
+Ylab<-14
 Xlab<-10
-Ytitle<-11
+Ytitle<-16
 titleJust=1
 Line<-.8
 Point<-3
@@ -222,9 +222,9 @@ summarySE <- function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
   }
 
 #controls
-Ylab<-10
-Xlab<-10
-Ytitle<-11
+Ylab<-14
+Xlab<-12
+Ytitle<-12
 titleJust<-1
 Line<-1.0
 Point<-4
@@ -337,3 +337,4 @@ tiff(filename='Fig2.tiff',width=11,height=8,units ="in",res=600)
   #jpeg(filename='Fig2.jpeg',width=11*180,height=8*180)
     #multiplot(a1,c1,b1,d1,cols=2)
   #dev.off()
+```
