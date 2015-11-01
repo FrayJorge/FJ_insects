@@ -322,7 +322,7 @@ d1<-Log1d+annotate("text", x =-Inf, y =Inf, label = "D)",hjust=h,vjust=v,size=Si
     #multiplot(a1,c1,b1,d1,cols=2)
     #dev.off()
 
-tiff(filename='Fig1.tiff',width=11,height=8,units ="in",res=600)
+tiff(filename='Fig1.tiff',width=11,height=8,units ="in",res=300)
   multiplot(a1,c1,b1,d1,cols=2)
   dev.off()
 
@@ -341,7 +341,7 @@ d1<-Log2d+annotate("text", x =-Inf, y =Inf, label = "D)",hjust=h,vjust=v,size=Si
 
 #windows(11,8.5)
 
-tiff(filename='Fig2.tiff',width=11,height=8,units ="in",res=600)
+tiff(filename='Fig2.tiff',width=11,height=8,units ="in",res=300)
   multiplot(a1,c1,b1,d1,cols=2)
   dev.off()
 
